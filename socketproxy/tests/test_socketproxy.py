@@ -60,9 +60,12 @@ class TestCodeFormat(unittest.TestCase):
 
     def test_pep8_compliance(self):
         import pep8
-        pep8test = pep8.StyleGuide(quiet=True)
-        result = pep8test.check_files(['socketproxy.py', 'tests.py'])
-        self.assertEqual(result.total_errors, 0, msg=str(result.messages))
+        pep8test = pep8.StyleGuide(quiet=True, reporter=pep8.StandardReport)
+        result = pep8test.check_files([
+            'socketproxy/tests/test_socketproxy.py',
+            'socketproxy/__init__.py',
+            ])
+        self.assertEqual(result.total_errors, 0)
 
     def test_pyflakes_compliance(self):
         from pyflakes import reporter
