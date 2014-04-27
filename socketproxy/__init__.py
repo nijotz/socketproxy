@@ -71,7 +71,8 @@ class SocketProxyServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
         self.allow_reuse_address = True
         # The above sets SO_REUSEADDR, but on OSX I needed REUSEPORT too
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        if getattr(socket, 'SO_REUSEPORT', None):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         self.server_bind()
         self.server_activate()
 
