@@ -4,116 +4,105 @@ import socket
 import SocketServer
 
 
-class SocketProxy(SocketServer):
-    """Threaded TCP Server. A DHT is composed of this server, with
-    requests handled by DHTRequestHandler"""
+class SocketProxyRequestHandler(SocketServer.BaseRequestHandler):
+    "New instances are created for each connection"
 
-    def __init__(self, node, handler_class):
+    def setup(self):
+        "Connects to the upstream server"
+        # pulls upstream connection information from the server class
+        self.upstream = self.server.upstream
+        self.upstream_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.upstream_conn.connect(self.upstream)
+
+    def proxy_data(self, sender, receiver):
+        "Attempts to proxy data, returning whether or not connection was open"
+
+        data = sender.recv(4096)
+
+        if data:
+            # Received data, send it through
+            receiver.sendall(data)
+            return True
+        else:
+            # No data, other side closed connection
+            return False
+
+    def handle(self):
+        errors = False
+        readables = True
+        closed = False
+        while not errors and not closed and readables:
+            # Wait for one of the sockets to become readable or closed
+            sockets = (self.request, self.upstream_conn)
+            readables, _, errors = select.select(sockets, (), sockets, 3)
+
+            for readable in readables:
+                if readable is self.upstream_conn:
+                    if not self.proxy_data(self.upstream_conn, self.request):
+                        closed = True
+                else:
+                    if not self.proxy_data(self.request, self.upstream_conn):
+                        closed = True
+
+
+class SocketProxyServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+
+    def __init__(self, upstream_host, upstream_port, server_host='localhost',
+                 server_port='8080', handler_class=SocketProxyRequestHandler):
+
         # False is for bind_and_activate, which will skip the socket bind on
         # init so that allow_reuse_address can be set on the socket which will
         # call socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) which avoids
         # 'Address is already in use' errors when server crashes non-gracefully
-        SocketServer.TCPServer.__init__(
-            self, (node.host, node.port), handler_class,
-            bind_and_activate=False)
-        self.attach_node(node)
+        SocketServer.TCPServer.__init__(self, (server_host, int(server_port)),
+                                        handler_class, bind_and_activate=False)
+
         self.allow_reuse_address = True
         # The above sets SO_REUSEADDR, but on OSX I needed REUSEPORT too
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         self.server_bind()
         self.server_activate()
 
+        self.upstream = (upstream_host, int(upstream_port))
 
-class SocketProxy(object):
-    
-    def __init__(self, server_host, server_port, proxy_host='localhost', proxy_port='8080'):
 
-        self.server_host = server_host
-        self.server_port = int(server_port)
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        self.proxy_host = proxy_host
-        self.proxy_port = int(proxy_port)
-        self.proxy_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        self.pipes = []
-
-    def connect(self):
-        "Connects to the server"
-        self.server.connect((self.server_host, self.server_port))
-
-    def listen(self):
-        "Waits for a connection"
-        self.proxy_conn.bind((self.proxy_host, self.proxy_port))
-        self.proxy_conn.listen(1)
-        self.proxy_conn.accept()
-        self.proxy, addr = self.proxy_conn.accept()
-        logging.info('{} connected'.format(addr))
+class PlumbingRequestHandler(SocketProxyRequestHandler):
 
     def proxy_data(self, sender, receiver):
-        receiver.send(sender.recv(4096))
+        data = sender.recv(4096)
 
-    def run(self):
-        "Waits for a connection to the proxy, then connects to the server, then proxies data"
-
-        self.listen()
-        self.connect()
-
-        while True:
-            # Wait for one of the sockets to be readable
-            sockets = (self.server, self.proxy)
-            readables, _, errors = select.select(sockets, (), sockets, 30)
-
-            for readable in readables:
-                if readable is self.server:
-                    self.proxy_data(self.server, self.proxy)
-                else:
-                    self.proxy_data(self.proxy, self.server)
+        if data:
+            if sender is self.upstream_conn:
+                method = "to_client"
+            else:
+                method = "to_upstream"
+            
+            for pipe in self.server.pipes:
+                receiver.sendall(getattr(pipe, method)(data))
+            return True
+        else:
+            return False
 
 
-class SocketPlumbing(SocketProxy):
+class PlumbingServer(SocketProxyServer):
     "Now with pipes!"
+
+    def __init__(self, *args, **kwargs):
+        SocketProxyServer.__init__(self, *args, handler_class=PlumbingRequestHandler, **kwargs)
+        self.pipes = []
 
     def add_pipe(self, pipe):
         self.pipes.append(pipe)
 
-    def feed_pipes(self, data, direction):
-        for pipe in self.pipes:
-            pipe.recieve(data, direction)
-
-    def proxy_data(self, sender, receiver):
-        data = sender.recv(4096)
-        if sender is self.server:
-            direction = 'inbound'
-        if sender is self.proxy:
-            direction = 'outbound'
-        self.feed_pipes(data, direction)
-        receiver.send(data)
-
 
 class Pipe(object):
-    "Can be hooked up to a SocketPlumbing"
+    "Can be hooked up to a PlumbingServer"
 
-    def attach_pipe(self, proxy):
-        self.proxy = proxy
+    def to_client(self, data):
+        return data
 
-    def send_inbound(self, data):
-        self.proxy.send(data, 'inbound')
-
-    def send_outbound(self, data):
-        self.proxy.send(data, 'outbound')
-
-    def recieve_inbound(self, data):
-        pass
-
-    def recieve_outbound(self, data):
-        pass
-
-    def recieve(self, data, direction):
-        if direction == 'inbound':
-            self.recieve_inbound(data)
-        if direction == 'outbound':
-            self.recieve_outbound(data)
+    def to_upstream(self, data):
+        return data
 
 
 def main(proxy_class):
@@ -131,9 +120,11 @@ def main(proxy_class):
     logger.addHandler(logging.StreamHandler())
 
     # Start proxy
-    logging.info('Starting proxy to connect to {} on port {}'.format(args.host, args.port))
+    logging.info(
+        'Starting proxy to connect to {} on port {}'.format(
+            args.host, args.port))
     proxy = proxy_class(args.host, args.port)
-    proxy.run()
+    proxy.serve_forever()
 
 if __name__ == '__main__':
-    main(SocketProxy)
+    main(SocketProxyServer)
