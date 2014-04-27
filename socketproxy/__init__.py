@@ -78,7 +78,9 @@ class PlumbingRequestHandler(SocketProxyRequestHandler):
                 method = "to_upstream"
             
             for pipe in self.server.pipes:
-                receiver.sendall(getattr(pipe, method)(data))
+                data = getattr(pipe, method)(data)
+
+            receiver.sendall(data)
             return True
         else:
             return False
