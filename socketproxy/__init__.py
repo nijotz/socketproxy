@@ -81,7 +81,7 @@ class PlumbingRequestHandler(SocketProxyRequestHandler):
                 method = "to_client"
             else:
                 method = "to_upstream"
-            
+
             for pipe in self.server.pipes:
                 data = getattr(pipe, method)(data)
 
