@@ -19,12 +19,7 @@ class SocketProxyRequestHandler(SocketServer.BaseRequestHandler):
     def proxy_data(self, sender, receiver):
         "Attempts to proxy data, returning whether or not connection was open"
 
-        try:
-            data = sender.recv(4096)
-        except SocketError as e:
-            if e.errno != errno.ECONNRESET:
-                raise
-            return False
+        data = sender.recv(4096)
 
         if data:
             # Received data, send it through
@@ -43,14 +38,17 @@ class SocketProxyRequestHandler(SocketServer.BaseRequestHandler):
             sockets = (self.request, self.upstream_conn)
             readables, _, errors = select.select(sockets, (), sockets, 3)
 
-            for readable in readables:
-                if readable is self.upstream_conn:
-                    if not self.proxy_data(self.upstream_conn, self.request):
-                        closed = True
-                else:
-                    if not self.proxy_data(self.request, self.upstream_conn):
-                        closed = True
-
+            try:
+                for readable in readables:
+                    if readable is self.upstream_conn:
+                        if not self.proxy_data(self.upstream_conn, self.request):
+                            closed = True
+                    else:
+                        if not self.proxy_data(self.request, self.upstream_conn):
+                            closed = True
+            except SocketError as e:
+                if e.errno != errno.ECONNRESET and e.errno != errno.EPIPE:
+                    raise
 
 class SocketProxyServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
