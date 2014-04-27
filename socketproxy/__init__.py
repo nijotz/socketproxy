@@ -95,7 +95,8 @@ class PlumbingServer(SocketProxyServer):
     "Now with pipes!"
 
     def __init__(self, *args, **kwargs):
-        SocketProxyServer.__init__(self, *args, handler_class=PlumbingRequestHandler, **kwargs)
+        SocketProxyServer.__init__(
+            self, *args, handler_class=PlumbingRequestHandler, **kwargs)
         self.pipes = []
 
     def add_pipe(self, pipe):

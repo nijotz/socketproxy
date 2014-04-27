@@ -26,7 +26,6 @@ class TestProxy(unittest.TestCase):
 
         self.assertNotEqual(data, '')
 
-
     def testPipeProxy(self):
 
         class OhToZero(Pipe):
