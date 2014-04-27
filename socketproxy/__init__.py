@@ -30,25 +30,32 @@ class SocketProxyRequestHandler(SocketServer.BaseRequestHandler):
             return False
 
     def handle(self):
-        errors = False
-        readables = True
-        closed = False
+
+        errors = False    # there were connection errors
+        readables = True  # there are readable connections (vs timeout)
+        closed = False    # the connection was closed
+
         while not errors and not closed and readables:
+
             # Wait for one of the sockets to become readable or closed
             sockets = (self.request, self.upstream_conn)
-            readables, _, errors = select.select(sockets, (), sockets, 3)
+            readables, _, errors = select.select(sockets, (), sockets, 30)
 
             try:
                 for readable in readables:
+                    # Upstream is sending to client
                     if readable is self.upstream_conn:
-                        if not self.proxy_data(self.upstream_conn, self.request):
-                            closed = True
+                        args = (self.upstream_conn, self.request)
+                    # Client is sending to upstream
                     else:
-                        if not self.proxy_data(self.request, self.upstream_conn):
-                            closed = True
+                        args = (self.request, self.upstream_conn)
+                    closed = not self.proxy_data(*args)
+
+            # Catch sockets closing and ignore them
             except SocketError as e:
                 if e.errno != errno.ECONNRESET and e.errno != errno.EPIPE:
                     raise
+
 
 class SocketProxyServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
