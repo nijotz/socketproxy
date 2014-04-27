@@ -1,6 +1,8 @@
+import errno
 import logging
 import select
 import socket
+from socket import error as SocketError
 import SocketServer
 
 
@@ -17,7 +19,12 @@ class SocketProxyRequestHandler(SocketServer.BaseRequestHandler):
     def proxy_data(self, sender, receiver):
         "Attempts to proxy data, returning whether or not connection was open"
 
-        data = sender.recv(4096)
+        try:
+            data = sender.recv(4096)
+        except SocketError as e:
+            if e.errno != errno.ECONNRESET:
+                raise
+            return False
 
         if data:
             # Received data, send it through
