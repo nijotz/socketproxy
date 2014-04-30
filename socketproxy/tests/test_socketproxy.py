@@ -58,15 +58,16 @@ class TestProxy(unittest.TestCase):
 
 class TestCodeFormat(unittest.TestCase):
 
+    def __init__(self, *args, **kwargs):
+        super(TestCodeFormat, self).__init__(*args, **kwargs)
+        self.path = ['socketproxy']
+
     def test_pep8_compliance(self):
         import pep8
 
         # Using the StandardReport will give you filenames and linenumbers
         pep8test = pep8.StyleGuide(quiet=True, reporter=pep8.StandardReport)
-        result = pep8test.check_files([
-            'socketproxy/tests/test_socketproxy.py',
-            'socketproxy/__init__.py',
-            ])
+        result = pep8test.check_files(self.path)
         self.assertEqual(result.total_errors, 0)
 
     def test_pyflakes_compliance(self):
@@ -99,8 +100,6 @@ class TestCodeFormat(unittest.TestCase):
                 self.print_error(arg)
                 self.error = True
 
-        path = os.path.dirname(os.path.realpath(__file__))
-
         reporter = PyflakesReporter()
-        api.checkRecursive([path], reporter)
+        api.checkRecursive(self.path, reporter)
         self.assertEqual(reporter.error, False)
