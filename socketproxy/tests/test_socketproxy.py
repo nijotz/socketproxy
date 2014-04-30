@@ -1,3 +1,4 @@
+import os
 import socket
 import threading
 import unittest
@@ -83,7 +84,6 @@ class TestCodeFormat(unittest.TestCase):
             def flake(self, *args, **kwargs):
                 self.error = True
 
-        import os
         path = os.path.dirname(os.path.realpath(__file__))
 
         reporter = PyflakesReporter()
