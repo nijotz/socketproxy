@@ -60,6 +60,8 @@ class TestCodeFormat(unittest.TestCase):
 
     def test_pep8_compliance(self):
         import pep8
+
+        # Using the StandardReport will give you filenames and linenumbers
         pep8test = pep8.StyleGuide(quiet=True, reporter=pep8.StandardReport)
         result = pep8test.check_files([
             'socketproxy/tests/test_socketproxy.py',
