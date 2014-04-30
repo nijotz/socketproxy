@@ -62,10 +62,10 @@ class SocketProxyServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     def __init__(self, upstream_host, upstream_port, server_host='localhost',
                  server_port='8080', handler_class=SocketProxyRequestHandler):
 
-        # False is for bind_and_activate, which will skip the socket bind on
-        # init so that allow_reuse_address can be set on the socket which will
-        # call socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) which avoids
-        # 'Address is already in use' errors when server crashes non-gracefully
+        # False for bind_and_activate will skip the socket bind on init so
+        # that allow_reuse_address can be set on the socket which will call
+        # socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) which avoids 'Address
+        # is already in use' errors when/if the server crashes non-gracefully
         SocketServer.TCPServer.__init__(self, (server_host, int(server_port)),
                                         handler_class, bind_and_activate=False)
 
