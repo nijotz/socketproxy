@@ -1,3 +1,4 @@
+from __future__ import print_function
 import socket
 import threading
 import unittest
@@ -76,10 +77,10 @@ class TestCodeFormat(unittest.TestCase):
         class PyflakesReporter(reporter.Reporter):
             def print_error(self, error):
                 message = error.message % error.message_args
-                print "{filename}: {message}".format(
+                print("{filename}: {message}".format(
                     filename=error.filename,
                     message=message,
-                )
+                ))
 
             def __init__(self, *args, **kwargs):
                 self.error = False

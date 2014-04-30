@@ -3,10 +3,13 @@ import logging
 import select
 import socket
 from socket import error as SocketError
-import SocketServer
+try:
+    import socketserver
+except ImportError:
+    import SocketServer as socketserver
 
 
-class SocketProxyRequestHandler(SocketServer.BaseRequestHandler):
+class SocketProxyRequestHandler(socketserver.BaseRequestHandler):
     "New instances are created for each connection"
 
     def setup(self):
@@ -57,7 +60,7 @@ class SocketProxyRequestHandler(SocketServer.BaseRequestHandler):
                     raise
 
 
-class SocketProxyServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class SocketProxyServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
     def __init__(self, upstream_host, upstream_port, server_host='localhost',
                  server_port='8080', handler_class=SocketProxyRequestHandler):
@@ -66,7 +69,7 @@ class SocketProxyServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         # that allow_reuse_address can be set on the socket which will call
         # socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1) which avoids 'Address
         # is already in use' errors when/if the server crashes non-gracefully
-        SocketServer.TCPServer.__init__(self, (server_host, int(server_port)),
+        socketserver.TCPServer.__init__(self, (server_host, int(server_port)),
                                         handler_class, bind_and_activate=False)
 
         self.allow_reuse_address = True
