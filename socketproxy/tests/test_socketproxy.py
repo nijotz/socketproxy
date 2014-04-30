@@ -75,9 +75,10 @@ class TestCodeFormat(unittest.TestCase):
 
         class PyflakesReporter(reporter.Reporter):
             def print_error(error):
+                message = error.message % error.message_args
                 print "{filename}: {message}".format(
                     filename=error.filename,
-                    message=error.message,
+                    message=message,
                 )
 
             def __init__(self, *args, **kwargs):
