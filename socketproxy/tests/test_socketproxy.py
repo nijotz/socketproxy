@@ -82,8 +82,6 @@ class TestCodeFormat(unittest.TestCase):
                 )
 
             def __init__(self, *args, **kwargs):
-                arg = args[0]
-                self.print_error(arg)
                 self.error = False
 
             def unexpectedError(self, *args, **kwargs):
