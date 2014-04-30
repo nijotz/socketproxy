@@ -74,16 +74,30 @@ class TestCodeFormat(unittest.TestCase):
         from pyflakes import api
 
         class PyflakesReporter(reporter.Reporter):
+            def print_error(error):
+                print "{filename}: {message}".format(
+                    filename=error.filename,
+                    message=error.message,
+                )
+
             def __init__(self, *args, **kwargs):
+                arg = args[0]
+                self.print_error(arg)
                 self.error = False
 
             def unexpectedError(self, *args, **kwargs):
+                arg = args[0]
+                self.print_error(arg)
                 self.error = True
 
             def syntaxError(self, *args, **kwargs):
+                arg = args[0]
+                self.print_error(arg)
                 self.error = True
 
             def flake(self, *args, **kwargs):
+                arg = args[0]
+                self.print_error(arg)
                 self.error = True
 
         path = os.path.dirname(os.path.realpath(__file__))
